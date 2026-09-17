@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>HOD Dashboard</title>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+
+    <div id="chrome"></div>
+
+    <script src="../assets/js/common.js"></script>
+
+    <script>
+        window.API_BASE='../../backend';
+
+        renderChrome('hod');
+
+        (async()=>{
+            const me=await requirePageRole('hod');
+            if(!me)return;
+
+            async function load()
+            {
+                try
+                {
+                    const [d,c]=await Promise.all([
+                        apiJson(API_BASE+'/hod/dashboard.php'),
+                        apiJson(API_BASE+'/hod/class_assignments.php')
+                    ]);
+
+                    const x=d.counts;
+
+                    document.getElementById('page-content').innerHTML=`
+                        <div class="page-head">
+                            <h3>HOD Dashboard</h3>
+                            <p>Welcome, ${escapeHtml(d.hod.full_name)} • ${escapeHtml(d.hod.department)}</p>
+                        </div>
+
+                        <div class="container-fluid">
+                            <div class="row g-3 mb-4">
+
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <span>Total Requests</span>
+                                        <strong>${x.total}</strong>
+                                        <i class="fa-solid fa-layer-group"></i>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <span>Pending</span>
+                                        <strong>${x.pending}</strong>
+                                        <i class="fa-solid fa-hourglass-half"></i>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <span>Locked</span>
+                                        <strong>${x.locked}</strong>
+                                        <i class="fa-solid fa-lock"></i>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <span>Approved</span>
+                                        <strong>${x.approved}</strong>
+                                        <i class="fa-solid fa-circle-check"></i>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <div class="card page-card" id="assignments">
+
+                                <div class="card-header">
+                                    <b>Class & Advisor Assignment</b>
+                                    <span class="text-muted small">${escapeHtml(c.department)}</span>
+                                </div>
+
+                                <div class="card-body">
+
+                                    <div class="row g-3">
+
+                                        <div class="col-lg-6">
+                                            <div class="border rounded p-3">
+                                                <h6>Section A</h6>
+
+                                                <div class="input-group">
+                                                    <select id="advA" class="form-select">
+                                                        <option value="">Select Class Advisor</option>
+
+                                                        ${c.advisors.map(a=>`
+                                                            <option value="${a.id}">
+                                                                ${escapeHtml(a.full_name)}
+                                                                ${a.designation?' — '+escapeHtml(a.designation):''}
+                                                            </option>
+                                                        `).join('')}
+
+                                                    </select>
+
+                                                    <button class="btn btn-primary assign" data-section="A">
+                                                        Assign
+                                                    </button>
+                                                </div>
+
+                                            </div>
+                                        </div>
+
+                                        <div class="col-lg-6">
+                                            <div class="border rounded p-3">
+                                                <h6>Section B</h6>
+
+                                                <div class="input-group">
+
+                                                    <select id="advB" class="form-select">
+                                                        <option value="">Select Class Advisor</option>
+
+                                                        ${c.advisors.map(a=>`
+                                                            <option value="${a.id}">
+                                                                ${escapeHtml(a.full_name)}
+                                                                ${a.designation?' — '+escapeHtml(a.designation):''}
+                                                            </option>
+                                                        `).join('')}
+
+                                                    </select>
+
+                                                    <button class="btn btn-primary assign" data-section="B">
+                                                        Assign
+                                                    </button>
+
+                                                </div>
+
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                    <div class="table-responsive mt-4">
+
+                                        <table class="table">
+
+                                            <thead>
+                                                <tr>
+                                                    <th>Section</th>
+                                                    <th>Batch</th>
+                                                    <th>Semester</th>
+                                                    <th>Academic Year</th>
+                                                    <th>Class Advisor</th>
+                                                </tr>
+                                            </thead>
+
+                                            <tbody>
+
+                                                ${c.classes.length?
+                                                    c.classes.map(r=>`
+                                                        <tr>
+                                                            <td><b>${escapeHtml(r.section)}</b></td>
+                                                            <td>${escapeHtml(r.batch)}</td>
+                                                            <td>${escapeHtml(r.semester)}</td>
+                                                            <td>${escapeHtml(r.academic_year)}</td>
+                                                            <td>
+                                                                ${escapeHtml(r.advisor_name)}
+                                                                ${r.designation?' <small class="text-muted">('+escapeHtml(r.designation)+')</small>':''}
+                                                            </td>
+                                                        </tr>
+                                                    `).join('')
+                                                    :
+                                                    '<tr><td colspan="5" class="text-center text-muted">No class assignments yet.</td></tr>'
+                                                }
+
+                                            </tbody>
+
+                                        </table>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                            <div class="card page-card" id="requests">
+
+                                <div class="card-header">
+                                    <b>Department Leave Requests</b>
+                                </div>
+
+                                <div class="table-responsive">
+
+                                    <table class="table table-hover mb-0">
+
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Student</th>
+                                                <th>Reg No</th>
+                                                <th>Date</th>
+                                                <th>Reason</th>
+                                                <th>Proof</th>
+                                                <th>Status</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+
+                                        <tbody>
+
+                                            ${d.leaves.length?
+                                                d.leaves.map((r,i)=>{
+
+                                                    const locked=
+                                                        Number(r.advisor_status)===2&&
+                                                        Number(r.forwarded_to_hod)===1&&
+                                                        Number(r.hod_status)===4;
+
+                                                    const pending=
+                                                        Number(r.advisor_status)===1&&
+                                                        Number(r.forwarded_to_hod)===1&&
+                                                        Number(r.hod_status)===4;
+
+                                                    return `
+                                                        <tr>
+
+                                                            <td>${i+1}</td>
+
+                                                            <td>${escapeHtml(r.full_name)}</td>
+
+                                                            <td>${escapeHtml(r.reg_no)}</td>
+
+                                                            <td>
+                                                                ${escapeHtml(r.date_from)} → ${escapeHtml(r.date_to)}
+                                                            </td>
+
+                                                            <td>${escapeHtml(r.reason)}</td>
+
+                                                            <td>
+                                                                ${r.proof?
+                                                                    `<a target="_blank" class="btn btn-sm btn-outline-info" href="../../uploads/student/proofs/${encodeURIComponent(r.proof)}">View</a>`
+                                                                    :
+                                                                    '-'
+                                                                }
+                                                            </td>
+
+                                                            <td>
+                                                                ${statusBadge(
+                                                                    locked?'Locked':
+                                                                    pending?'Pending':
+                                                                    Number(r.hod_status)===2?'Approved':
+                                                                    Number(r.hod_status)===5?'Rejected':
+                                                                    'Waiting'
+                                                                )}
+                                                            </td>
+
+                                                            <td>
+
+                                                                ${locked?
+                                                                    `<button class="btn btn-sm btn-warning act" data-id="${r.id}" data-action="release">
+                                                                        Release Lock
+                                                                    </button>`
+                                                                    :
+                                                                    pending?
+                                                                    `<button class="btn btn-sm btn-success act" data-id="${r.id}" data-action="approve">
+                                                                        Approve
+                                                                    </button>
+
+                                                                    <button class="btn btn-sm btn-danger act" data-id="${r.id}" data-action="reject">
+                                                                        Reject
+                                                                    </button>`
+                                                                    :
+                                                                    '<span class="text-muted">Completed</span>'
+                                                                }
+
+                                                            </td>
+
+                                                        </tr>
+                                                    `
+
+                                                }).join('')
+                                                :
+                                                '<tr><td colspan="8" class="text-center text-muted">No department leave requests found.</td></tr>'
+                                            }
+
+                                        </tbody>
+
+                                    </table>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    `;
+
+                    document.querySelectorAll('.assign').forEach(b=>
+                        b.addEventListener('click',()=>assign(b.dataset.section))
+                    );
+
+                    document.querySelectorAll('.act').forEach(b=>
+                        b.addEventListener('click',()=>act(b.dataset.id,b.dataset.action))
+                    );
+
+                }
+                catch(e)
+                {
+                    Swal.fire('Error',e.message,'error');
+                }
+            }
+
+            async function assign(section)
+            {
+                const id=document.getElementById(section==='A'?'advA':'advB').value;
+
+                if(!id)
+                {
+                    Swal.fire('Select Advisor','Please select a Class Advisor.','warning');
+                    return;
+                }
+
+                try
+                {
+                    const fd=new FormData();
+
+                    fd.append('section',section);
+                    fd.append('advisor_id',id);
+
+                    const d=await apiJson(
+                        API_BASE+'/hod/class_assignments.php',
+                        {method:'POST',body:fd}
+                    );
+
+                    await Swal.fire('Success',d.message,'success');
+
+                    load();
+                }
+                catch(e)
+                {
+                    Swal.fire('Error',e.message,'error');
+                }
+            }
+
+            async function act(id,action)
+            {
+                const x=await Swal.fire({
+                    title:
+                        action==='release'?'Release this locked request?':
+                        action==='approve'?'Approve this leave?':
+                        'Reject this leave?',
+
+                    showCancelButton:true,
+
+                    confirmButtonText:
+                        action==='release'?'Release Lock':
+                        action==='approve'?'Approve':
+                        'Reject'
+                });
+
+                if(!x.isConfirmed)return;
+
+                try
+                {
+                    const fd=new FormData();
+
+                    fd.append('id',id);
+                    fd.append('action',action);
+
+                    const d=await apiJson(
+                        API_BASE+'/hod/action.php',
+                        {method:'POST',body:fd}
+                    );
+
+                    await Swal.fire('Success',d.message,'success');
+
+                    load();
+                }
+                catch(e)
+                {
+                    Swal.fire('Error',e.message,'error');
+                }
+            }
+
+            load();
+
+        })();
+    </script>
+
+</body>
+</html>

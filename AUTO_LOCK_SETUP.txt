@@ -1,0 +1,56 @@
+FACULTY 48-HOUR AUTO-LOCK
+
+What this version does:
+1. Student applies for leave -> advisor_status = 4 (Pending).
+2. If the faculty/advisor does not approve or reject within 48 hours from created_at,
+   the system changes advisor_status to 2 (Locked).
+3. Locked requests are not forwarded to the HOD.
+4. Faculty sees "Locked" and cannot Approve/Reject it.
+5. Only the assigned faculty/advisor receives the automatic-lock email.
+6. HOD has no lock option and receives no lock email.
+7. Existing advisor/HOD approve/reject email workflow remains unchanged.
+
+DATABASE:
+- db.php automatically adds advisor_lock_notified to an existing leave_requests table.
+- For a fresh database, database_setup.sql includes the column.
+
+AUTOMATIC CHECK:
+- Faculty dashboard runs the lock check whenever it loads.
+- backend/auto_lock.php is also provided for Windows Task Scheduler / cron.
+- For exact automatic timing even when nobody opens the faculty dashboard, schedule:
+  http://localhost/new_proj/newtemplate/backend/auto_lock.php
+  every 5-10 minutes.
+
+TEST WITHOUT WAITING 48 HOURS:
+1. Open phpMyAdmin -> leave_management -> leave_requests.
+2. Choose a pending request (advisor_status = 4).
+3. Change created_at to a time more than 48 hours ago.
+   Example: 2026-09-07 09:00:00 when testing on 2026-09-10.
+4. Open/refresh Faculty Dashboard with Ctrl+F5.
+5. Expected:
+   Advisor Status = Locked
+   Action = Auto Locked
+   HOD Status = Not Forwarded
+6. You can also open:
+   http://localhost/new_proj/newtemplate/backend/auto_lock.php
+   It should return JSON showing how many requests were locked.
+
+EMAIL:
+- Put the faculty/advisor's email in users.email.
+- Set MAIL_APP_PASSWORD in backend/shared/email_config.php to your Gmail App Password.
+- Do not put a normal Gmail account password there.
+- The lock email is sent only to the assigned faculty/advisor.
+
+STATUS VALUES:
+4 = Pending
+1 = Approved
+3 = Rejected
+2 = Locked
+
+
+LOCK RELEASE WORKFLOW
+- Scheduler locks pending advisor requests after 48 hours and forwards them to the same-department HOD.
+- HOD sees the locked request and can click Release Lock.
+- Release returns it to the same advisor with a fresh 48-hour deadline.
+- Advisor must approve/reject; approval forwards it to the same HOD for final decision.
+- Student dashboard and My Leave Requests show the Locked status.

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Student Dashboard</title>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+
+    <div id="chrome"></div>
+
+    <script src="../assets/js/common.js"></script>
+
+    <script>
+        window.API_BASE='../../backend';
+
+        renderChrome('student');
+
+        (async()=>{
+            const me=await requirePageRole('student');
+
+            if(!me)return;
+
+            try
+            {
+                const d=await apiJson(API_BASE+'/student/dashboard.php');
+
+                const s=d.student,
+                    c=d.counts;
+
+                document.getElementById('page-content').innerHTML=`
+                    <div class="page-head">
+                        <h3>Student Dashboard</h3>
+                        <p>Welcome, ${escapeHtml(s.full_name)}.</p>
+                    </div>
+
+                    <div class="container-fluid">
+
+                        <div id="lockNotice"></div>
+
+                        <div class="row g-3 mb-4">
+
+                            ${[
+                                ['Total Requests',c.total,'layer-group'],
+                                ['Pending',c.pending,'hourglass-half'],
+                                ['Approved',c.approved,'circle-check'],
+                                ['Rejected',c.rejected,'circle-xmark']
+                            ].map(x=>`
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <span>${x[0]}</span>
+                                        <strong>${x[1]}</strong>
+                                        <i class="fa-solid fa-${x[2]}"></i>
+                                    </div>
+                                </div>
+                            `).join('')}
+
+                        </div>
+
+                        <div class="card page-card mb-4">
+
+                            <div class="card-body">
+
+                                <div class="row">
+
+                                    <div class="col-md-4">
+                                        <b>Name</b>
+                                        <div>${escapeHtml(s.full_name)}</div>
+                                    </div>
+
+                                    <div class="col-md-2">
+                                        <b>Reg No</b>
+                                        <div>${escapeHtml(s.reg_no)}</div>
+                                    </div>
+
+                                    <div class="col-md-2">
+                                        <b>Department</b>
+                                        <div>${escapeHtml(s.department)}</div>
+                                    </div>
+
+                                    <div class="col-md-2">
+                                        <b>Branch</b>
+                                        <div>${escapeHtml(s.branch||'-')}</div>
+                                    </div>
+
+                                    <div class="col-md-2">
+                                        <b>Semester</b>
+                                        <div>${escapeHtml(s.semester)}</div>
+                                    </div>
+
+                                    <div class="col-md-2">
+                                        <b>Batch</b>
+                                        <div>${escapeHtml(s.batch)}</div>
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="card page-card" id="requests">
+
+                            <div class="card-header">
+                                <b>My Leave Requests</b>
+
+                                <a href="apply_leave.html" class="btn btn-primary btn-sm">
+                                    + Apply Leave/OD
+                                </a>
+                            </div>
+
+                            <div class="d-flex justify-content-end align-items-center p-3">
+
+                                <a href="../../backend/student/download_leaves.php" class="btn btn-success">
+                                    <i class="fa-solid fa-file-excel me-2"></i>
+                                    Download Excel
+                                </a>
+
+                            </div>
+
+                            <div class="table-responsive">
+
+                                <table class="table table-hover mb-0">
+
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Dates</th>
+                                            <th>Reason</th>
+                                            <th>Advisor</th>
+                                            <th>HOD</th>
+                                            <th>Final Status</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+
+                                        ${d.leaves.length?
+                                            d.leaves.map((r,i)=>`
+                                                <tr>
+                                                    <td>${i+1}</td>
+
+                                                    <td>
+                                                        ${escapeHtml(r.date_from)} → ${escapeHtml(r.date_to)}
+                                                    </td>
+
+                                                    <td>
+                                                        ${escapeHtml(r.reason)}
+                                                    </td>
+
+                                                    <td>
+                                                        ${statusBadge(advisorStatus(r))}
+                                                    </td>
+
+                                                    <td>
+                                                        ${statusBadge(hodStatus(r))}
+                                                    </td>
+
+                                                    <td>
+                                                        ${statusBadge(finalStatus(r))}
+                                                    </td>
+                                                </tr>
+                                            `).join('')
+                                            :
+                                            '<tr><td colspan="6" class="text-center text-muted">No leave requests found.</td></tr>'
+                                        }
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                `;
+
+                const locked=d.leaves.filter(
+                    r=>Number(r.advisor_status)===2
+                );
+
+                if(locked.length)
+                {
+                    document.getElementById('lockNotice').innerHTML=`
+                        <div class="alert alert-warning d-flex align-items-center gap-2">
+
+                            <i class="fa-solid fa-lock"></i>
+
+                            <div>
+                                <b>Leave Locked</b>
+
+                                <div>
+                                    ${locked.length} request(s) were automatically locked after the 48-hour Advisor deadline and forwarded to your HOD for review.
+                                </div>
+
+                            </div>
+
+                        </div>
+                    `;
+                }
+
+                if(d.notification)
+                {
+                    const toast=document.createElement('div');
+
+                    toast.className='leave-toast';
+
+                    toast.innerHTML=`
+                        <button class="toast-close">×</button>
+
+                        <div class="toast-title">
+                            ✓ Leave Approved
+                        </div>
+
+                        <div class="toast-message">
+                            Your leave request from ${escapeHtml(d.notification.date_from)} to ${escapeHtml(d.notification.date_to)} has been approved by HOD.
+                        </div>
+                    `;
+
+                    document.body.appendChild(toast);
+
+                    toast.querySelector('.toast-close').onclick=()=>toast.remove();
+
+                    setTimeout(()=>toast.remove(),5000);
+                }
+
+            }
+            catch(e)
+            {
+                Swal.fire('Error',e.message,'error');
+            }
+
+        })();
+    </script>
+
+</body>
+</html>

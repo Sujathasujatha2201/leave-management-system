@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    <title>Leave Management System - Login</title>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body class="login-page">
+
+    <div class="login-wrap">
+
+        <div class="login-card">
+
+            <div class="login-brand">
+                <div class="college-name">
+                    M. Kumarasamy<br>
+                    College of Engineering
+                </div>
+            </div>
+
+            <div class="role-tabs">
+
+                <button type="button" class="role-btn active" data-role="student">
+                    <i class="fa-solid fa-user-graduate"></i>
+                    Student
+                </button>
+
+                <button type="button" class="role-btn" data-role="advisor">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                    Faculty
+                </button>
+
+                <button type="button" class="role-btn" data-role="hod">
+                    <i class="fa-solid fa-user-tie"></i>
+                    HOD
+                </button>
+
+                <button type="button" class="role-btn" data-role="course_faculty">
+                    <i class="fa-solid fa-book-open"></i>
+                    Course Faculty
+                </button>
+
+            </div>
+
+            <form id="loginForm">
+
+                <input type="hidden" name="role" id="role" value="student">
+
+                <div class="login-field mb-3">
+
+                    <div class="input-group">
+
+                        <span class="input-group-text">
+                            <i class="fa-solid fa-id-card"></i>
+                        </span>
+
+                        <input
+                            class="form-control"
+                            name="username"
+                            placeholder="Username"
+                            required
+                            autocomplete="username"
+                        >
+
+                    </div>
+
+                </div>
+
+                <div class="login-field mb-3">
+
+                    <div class="input-group">
+
+                        <span class="input-group-text">
+                            <i class="fa-solid fa-lock"></i>
+                        </span>
+
+                        <input
+                            type="password"
+                            class="form-control"
+                            name="password"
+                            placeholder="Password"
+                            required
+                            autocomplete="current-password"
+                        >
+
+                    </div>
+
+                </div>
+
+                <button class="btn btn-primary w-100" type="submit">
+                    <i class="fa-solid fa-right-to-bracket"></i>
+                    Login
+                </button>
+
+            </form>
+
+            <div class="test-login">
+
+                <strong>Demo login</strong>
+                <br>
+
+                Students:
+                <b>ragavarshini</b>,
+                <b>sowmiya</b>,
+                <b>sujatha</b>,
+                <b>libika</b>,
+                <b>theshitha</b>,
+                <b>tharanya</b>
+                / 123456
+
+                <br>
+
+                Advisors:
+                <b>advisor_a_csbs</b>,
+                <b>advisor_b_csbs</b>,
+                <b>advisor_a_eee</b>,
+                <b>advisor_b_eee</b>,
+                <b>advisor_a_it</b>,
+                <b>advisor_b_it</b>
+                / 123456
+
+                <br>
+
+                Course Faculty:
+                <b>sathya</b>,
+                <b>sangeetha</b>,
+                <b>vishwanath_kani</b>,
+                <b>srinivasan</b>,
+                <b>meivel</b>,
+                <b>sathyamoorthi</b>,
+                <b>vedhapriya</b>,
+                <b>kalaivani</b>,
+                <b>banupriya</b>,
+                <b>shobana</b>
+                / 123456
+
+                <br>
+
+                HOD:
+                <b>hod_eee</b>,
+                <b>hod_csbs</b>,
+                <b>hod_it</b>
+                / 123456
+
+            </div>
+
+            <p class="setup-link">
+                <a href="../create_users.php">
+                    Run setup / create test users
+                </a>
+            </p>
+
+        </div>
+
+    </div>
+
+    <script>
+
+        const API_BASE='../backend';
+
+        const form=document.getElementById('loginForm');
+
+        document.querySelectorAll('.role-btn').forEach(b=>
+            b.addEventListener('click',()=>{
+                document.querySelectorAll('.role-btn').forEach(x=>
+                    x.classList.remove('active')
+                );
+
+                b.classList.add('active');
+
+                document.getElementById('role').value=b.dataset.role;
+            })
+        );
+
+        form.addEventListener('submit',async e=>{
+
+            e.preventDefault();
+
+            const btn=form.querySelector('button[type=submit]');
+
+            const original=btn.innerHTML;
+
+            btn.disabled=true;
+
+            btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Logging in...';
+
+            try{
+
+                const response=await fetch(
+                    API_BASE+'/auth/login.php',
+                    {
+                        method:'POST',
+                        body:new FormData(form),
+                        credentials:'same-origin',
+                        headers:{
+                            'Accept':'application/json'
+                        }
+                    }
+                );
+
+                const raw=await response.text();
+
+                let d;
+
+                try{
+                    d=JSON.parse(raw);
+                }
+                catch(_){
+                    throw new Error('Server error. Please check XAMPP Apache/PHP.');
+                }
+
+                if(!response.ok || !d.success)
+                    throw new Error(
+                        d.message||'Invalid username, password or role.'
+                    );
+
+                if(!d.redirect)
+                    throw new Error(
+                        'Login successful but redirect path is missing.'
+                    );
+
+                window.location.href=
+                    new URL(
+                        d.redirect,
+                        window.location.href
+                    ).href;
+
+            }
+            catch(err){
+
+                Swal.fire({
+                    icon:'error',
+                    title:'Login Failed',
+                    text:err.message
+                });
+
+                btn.disabled=false;
+
+                btn.innerHTML=original;
+            }
+
+        });
+
+    </script>
+
+</body>
+</html>

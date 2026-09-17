@@ -1,0 +1,1370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Faculty Dashboard</title>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+
+<div id="chrome"></div>
+
+<script src="../assets/js/common.js"></script>
+
+<script>
+
+window.API_BASE = '../../backend';
+
+renderChrome('advisor');
+
+(async () => {
+
+    const me = await requirePageRole('advisor');
+
+    if (!me) return;
+
+
+    async function load() {
+
+        try {
+
+            /* =========================
+               LOAD DASHBOARD DATA
+            ========================= */
+
+            const d = await apiJson(
+                API_BASE + '/advisor/dashboard.php'
+            );
+
+            const course = await apiJson(
+                API_BASE + '/advisor/course_faculty_assignments.php'
+            );
+
+            const timetableData = await apiJson(
+                API_BASE + '/advisor/timetable.php'
+            );
+
+            const c = d.counts;
+
+
+            /* =========================
+               MAIN DASHBOARD
+            ========================= */
+
+            document.getElementById('page-content').innerHTML = `
+
+                <div class="page-head">
+
+                    <h3>Faculty Dashboard</h3>
+
+                    <p>
+                        Welcome,
+                        ${escapeHtml(d.faculty.full_name)}
+                        •
+                        ${escapeHtml(d.faculty.department)}
+                    </p>
+
+                </div>
+
+
+                <div class="container-fluid">
+
+
+                    <!-- =========================
+                         STATISTICS
+                    ========================= -->
+
+                    <div class="row g-3 mb-4">
+
+                        ${[
+                            ['Total Requests', c.total, 'layer-group'],
+                            ['Pending', c.pending, 'hourglass-half'],
+                            ['Approved', c.approved, 'circle-check'],
+                            ['Rejected', c.rejected, 'circle-xmark'],
+                            ['Locked', c.locked, 'lock']
+                        ].map(x => `
+
+                            <div class="col-md-3">
+
+                                <div class="stat-card">
+
+                                    <span>${x[0]}</span>
+
+                                    <strong>${x[1]}</strong>
+
+                                    <i class="fa-solid fa-${x[2]}"></i>
+
+                                </div>
+
+                            </div>
+
+                        `).join('')}
+
+                    </div>
+
+
+                    <!-- =========================
+                         WEEKLY TIMETABLE
+                    ========================= -->
+
+                    <div class="card page-card" id="timetable">
+
+                        <div class="card-header">
+
+                            <b>Weekly Timetable</b>
+
+                            <span class="text-muted small">
+                                Monday - Saturday • 7 Periods
+                            </span>
+
+                        </div>
+
+
+                        <div class="card-body">
+
+                            <div class="table-responsive">
+
+                                <table class="table table-bordered text-center align-middle">
+
+                                    <thead>
+
+                                        <tr>
+
+                                            <th>Day</th>
+
+                                            <th>Period 1</th>
+                                            <th>Period 2</th>
+                                            <th>Period 3</th>
+                                            <th>Period 4</th>
+                                            <th>Period 5</th>
+                                            <th>Period 6</th>
+                                            <th>Period 7</th>
+
+                                        </tr>
+
+                                    </thead>
+
+
+                                    <tbody id="timetableBody">
+
+                                        <tr>
+
+                                            <td colspan="8"
+                                                class="text-muted">
+
+                                                Loading timetable...
+
+                                            </td>
+
+                                        </tr>
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =========================
+                         COURSE FACULTY
+                    ========================= -->
+
+                    <div class="card page-card" id="courses">
+
+                        <div class="card-header">
+
+                            <b>Course Handling Faculty</b>
+
+                            <span class="text-muted small">
+                                Assign any Course Faculty to each subject
+                            </span>
+
+                        </div>
+
+
+                        <div class="card-body">
+
+                            <div id="courseArea"></div>
+
+
+                            <!-- =========================
+                                 ASSIGN TIMETABLE
+                            ========================= -->
+
+                            <div class="card page-card mt-3">
+
+                                <div class="card-header">
+
+                                    <b>Assign Timetable</b>
+
+                                </div>
+
+
+                                <div class="card-body">
+
+                                    <div id="timetableAssignmentArea">
+
+                                        <div class="text-muted">
+
+                                            Timetable subjects loading...
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =========================
+                         LEAVE REQUESTS
+                    ========================= -->
+
+                    <div class="card page-card" id="requests">
+
+                        <div class="card-header">
+
+                            <b>Leave Requests</b>
+
+                        </div>
+
+
+                        <div class="table-responsive">
+
+                            <table class="table table-hover mb-0">
+
+                                <thead>
+
+                                    <tr>
+
+                                        <th>S.No</th>
+                                        <th>Student</th>
+                                        <th>Reg No</th>
+                                        <th>Date</th>
+                                        <th>Reason</th>
+                                        <th>Proof</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+
+                                    </tr>
+
+                                </thead>
+
+
+                                <tbody>
+
+                                    ${
+                                        d.leaves.length
+
+                                        ?
+
+                                        d.leaves.map((r, i) => `
+
+                                            <tr>
+
+                                                <td>
+                                                    ${i + 1}
+                                                </td>
+
+                                                <td>
+                                                    ${escapeHtml(r.full_name)}
+                                                </td>
+
+                                                <td>
+                                                    ${escapeHtml(r.reg_no)}
+                                                </td>
+
+                                                <td>
+                                                    ${escapeHtml(r.date_from)}
+                                                    to
+                                                    ${escapeHtml(r.date_to)}
+                                                </td>
+
+                                                <td>
+                                                    ${escapeHtml(r.reason)}
+                                                </td>
+
+                                                <td>
+
+                                                    ${
+                                                        r.proof
+
+                                                        ?
+
+                                                        `<a
+                                                            href="../../uploads/student/proofs/${encodeURIComponent(r.proof)}"
+                                                            target="_blank"
+                                                            class="btn btn-sm btn-info text-white">
+                                                            View
+                                                        </a>`
+
+                                                        :
+
+                                                        '-'
+                                                    }
+
+                                                </td>
+
+                                                <td>
+
+                                                    ${statusBadge(
+                                                        advisorStatus(r)
+                                                    )}
+
+                                                </td>
+
+
+                                                <td>
+
+                                                    ${
+                                                        Number(r.advisor_status) === 4
+
+                                                        ?
+
+                                                        `
+                                                        <button
+                                                            class="btn btn-success btn-sm act"
+                                                            data-id="${r.id}"
+                                                            data-action="approve">
+                                                            Approve
+                                                        </button>
+
+                                                        <button
+                                                            class="btn btn-danger btn-sm act"
+                                                            data-id="${r.id}"
+                                                            data-action="reject">
+                                                            Reject
+                                                        </button>
+                                                        `
+
+                                                        :
+
+                                                        Number(r.advisor_status) === 2
+
+                                                        ?
+
+                                                        `
+                                                        <span class="text-danger fw-semibold">
+
+                                                            <i class="fa-solid fa-lock me-1"></i>
+
+                                                            Auto Locked — sent to HOD
+
+                                                        </span>
+                                                        `
+
+                                                        :
+
+                                                        `
+                                                        <span class="text-muted">
+                                                            Completed
+                                                        </span>
+                                                        `
+                                                    }
+
+                                                </td>
+
+                                            </tr>
+
+                                        `).join('')
+
+                                        :
+
+                                        `
+                                        <tr>
+
+                                            <td colspan="8"
+                                                class="text-center text-muted">
+
+                                                No leave requests found.
+
+                                            </td>
+
+                                        </tr>
+                                        `
+                                    }
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+            `;
+
+
+            /* =========================
+               WEEKLY TIMETABLE DISPLAY
+            ========================= */
+
+            const days = [
+                'Monday',
+                'Tuesday',
+                'Wednesday',
+                'Thursday',
+                'Friday',
+                'Saturday'
+            ];
+
+
+            let weeklyTimetableHtml = '';
+
+
+            days.forEach(day => {
+
+                weeklyTimetableHtml += `
+
+                    <tr>
+
+                        <th>
+                            ${day}
+                        </th>
+
+                `;
+
+
+                for (let period = 1; period <= 7; period++) {
+
+                    const item =
+                        timetableData.timetable.find(
+                            t =>
+                                t.day === day &&
+                                Number(t.period) === period
+                        );
+
+
+                    weeklyTimetableHtml += `
+
+                        <td>
+
+                            ${
+                                item
+
+                                ?
+
+                                `
+                                <div class="fw-semibold">
+
+                                    ${escapeHtml(item.course_name)}
+
+                                </div>
+
+                                <div class="small text-muted">
+
+                                    ${escapeHtml(item.faculty_name)}
+
+                                </div>
+
+                                <div class="small">
+
+                                    Section
+                                    ${escapeHtml(item.section)}
+
+                                </div>
+                                `
+
+                                :
+
+                                `
+                                <span class="text-muted small">
+
+                                    Free
+
+                                </span>
+                                `
+                            }
+
+                        </td>
+
+                    `;
+
+                }
+
+
+                weeklyTimetableHtml += `
+
+                    </tr>
+
+                `;
+
+            });
+
+
+            document.getElementById(
+                'timetableBody'
+            ).innerHTML = weeklyTimetableHtml;
+
+
+            /* =========================
+               COURSE FACULTY ASSIGNMENT
+            ========================= */
+
+            const classes = course.classes;
+
+
+            document.getElementById(
+                'courseArea'
+            ).innerHTML = classes.length
+
+                ?
+
+                classes.map(cls => `
+
+                    <div class="border rounded p-3 mb-3">
+
+                        <div class="fw-semibold mb-3">
+
+                            ${escapeHtml(cls.department)}
+                            -
+                            Section
+                            ${escapeHtml(cls.section)}
+
+                            <span class="text-muted">
+
+                                (
+                                ${escapeHtml(cls.batch)}
+                                • Sem
+                                ${escapeHtml(cls.semester)}
+                                •
+                                ${escapeHtml(cls.academic_year)}
+                                )
+
+                            </span>
+
+                        </div>
+
+
+                        <div class="table-responsive">
+
+                            <table class="table">
+
+                                <thead>
+
+                                    <tr>
+
+                                        <th>
+                                            Subject
+                                        </th>
+
+                                        <th>
+                                            Course Faculty
+                                        </th>
+
+                                        <th>
+                                            Action
+                                        </th>
+
+                                    </tr>
+
+                                </thead>
+
+
+                                <tbody>
+
+                                    ${
+                                        Object.entries(
+                                            course.subjects
+                                        ).map(
+                                            ([slot, name]) => {
+
+                                                const existing =
+                                                    course.assignments.find(
+                                                        a =>
+                                                            Number(
+                                                                a.class_assignment_id
+                                                            ) === Number(cls.id)
+
+                                                            &&
+
+                                                            Number(
+                                                                a.subject_slot
+                                                            ) === Number(slot)
+                                                    );
+
+
+                                                return `
+
+                                                    <tr>
+
+                                                        <td>
+
+                                                            <b>
+                                                                ${escapeHtml(name)}
+                                                            </b>
+
+                                                        </td>
+
+
+                                                        <td>
+
+                                                            <select
+                                                                class="form-select faculty-select"
+                                                                data-class="${cls.id}"
+                                                                data-slot="${slot}">
+
+                                                                <option value="">
+
+                                                                    Select Faculty
+
+                                                                </option>
+
+
+                                                                ${
+                                                                    course.faculty.map(
+                                                                        f => `
+
+                                                                            <option
+                                                                                value="${f.id}"
+
+                                                                                ${
+                                                                                    existing &&
+                                                                                    Number(existing.faculty_id) === Number(f.id)
+
+                                                                                    ? 'selected'
+
+                                                                                    : ''
+                                                                                }>
+
+                                                                                ${escapeHtml(f.full_name)}
+                                                                                —
+                                                                                ${escapeHtml(f.designation || 'Faculty')}
+
+                                                                            </option>
+
+                                                                        `
+                                                                    ).join('')
+                                                                }
+
+                                                            </select>
+
+                                                        </td>
+
+
+                                                        <td>
+
+                                                            <button
+                                                                class="btn btn-primary btn-sm course-assign"
+                                                                data-class="${cls.id}"
+                                                                data-slot="${slot}">
+
+                                                                Assign
+
+                                                            </button>
+
+                                                        </td>
+
+                                                    </tr>
+
+                                                `;
+
+                                            }
+                                        ).join('')
+                                    }
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                `).join('')
+
+                :
+
+                `
+
+                <div class="text-center text-muted py-3">
+
+                    No class is assigned to you yet.
+                    Ask your HOD to assign your section.
+
+                </div>
+
+                `;
+
+
+            /* =========================
+               COURSE ASSIGN BUTTONS
+            ========================= */
+
+            document
+                .querySelectorAll('.course-assign')
+                .forEach(button => {
+
+                    button.addEventListener(
+                        'click',
+                        () =>
+                            assignCourse(
+                                button.dataset.class,
+                                button.dataset.slot
+                            )
+                    );
+
+                });
+
+
+            /* =========================
+               TIMETABLE ASSIGNMENT UI
+            ========================= */
+
+            let timetableAssignHtml = '';
+
+
+            if (classes.length) {
+
+                classes.forEach(cls => {
+
+                    timetableAssignHtml += `
+
+                        <div class="border rounded p-3 mb-3">
+
+                            <div class="fw-semibold mb-3">
+
+                                ${escapeHtml(cls.department)}
+                                -
+                                Section
+                                ${escapeHtml(cls.section)}
+
+                            </div>
+
+
+                            <div class="table-responsive">
+
+                                <table class="table align-middle">
+
+                                    <thead>
+
+                                        <tr>
+
+                                            <th>
+                                                Subject
+                                            </th>
+
+                                            <th>
+                                                Course Faculty
+                                            </th>
+
+                                            <th>
+                                                Day
+                                            </th>
+
+                                            <th>
+                                                Period
+                                            </th>
+
+                                            <th>
+                                                Action
+                                            </th>
+
+                                        </tr>
+
+                                    </thead>
+
+
+                                    <tbody>
+
+                                        ${
+                                            Object.entries(
+                                                course.subjects
+                                            ).map(
+                                                ([slot, name]) => {
+
+                                                    const existing =
+                                                        course.assignments.find(
+                                                            a =>
+                                                                Number(
+                                                                    a.class_assignment_id
+                                                                ) === Number(cls.id)
+
+                                                                &&
+
+                                                                Number(
+                                                                    a.subject_slot
+                                                                ) === Number(slot)
+                                                        );
+
+
+                                                    let facultyName =
+                                                        'Not assigned';
+
+
+                                                    if (existing) {
+
+                                                        const faculty =
+                                                            course.faculty.find(
+                                                                f =>
+                                                                    Number(f.id) ===
+                                                                    Number(existing.faculty_id)
+                                                            );
+
+
+                                                        if (faculty) {
+
+                                                            facultyName =
+                                                                faculty.full_name;
+
+                                                        }
+
+                                                    }
+
+
+                                                    return `
+
+                                                        <tr>
+
+                                                            <td>
+
+                                                                <b>
+                                                                    ${escapeHtml(name)}
+                                                                </b>
+
+                                                            </td>
+
+
+                                                            <td>
+
+                                                                ${
+                                                                    existing
+
+                                                                    ?
+
+                                                                    escapeHtml(
+                                                                        facultyName
+                                                                    )
+
+                                                                    :
+
+                                                                    `
+                                                                    <span class="text-muted">
+                                                                        Not assigned
+                                                                    </span>
+                                                                    `
+                                                                }
+
+                                                            </td>
+
+
+                                                            <td>
+
+                                                                <select
+                                                                    class="form-select timetable-day"
+                                                                    data-class="${cls.id}"
+                                                                    data-slot="${slot}">
+
+                                                                    <option value="">
+                                                                        Select Day
+                                                                    </option>
+
+                                                                    <option value="Monday">
+                                                                        Monday
+                                                                    </option>
+
+                                                                    <option value="Tuesday">
+                                                                        Tuesday
+                                                                    </option>
+
+                                                                    <option value="Wednesday">
+                                                                        Wednesday
+                                                                    </option>
+
+                                                                    <option value="Thursday">
+                                                                        Thursday
+                                                                    </option>
+
+                                                                    <option value="Friday">
+                                                                        Friday
+                                                                    </option>
+
+                                                                    <option value="Saturday">
+                                                                        Saturday
+                                                                    </option>
+
+                                                                </select>
+
+                                                            </td>
+
+
+                                                            <td>
+
+                                                                <select
+                                                                    class="form-select timetable-period"
+                                                                    data-class="${cls.id}"
+                                                                    data-slot="${slot}">
+
+                                                                    <option value="">
+                                                                        Select Period
+                                                                    </option>
+
+                                                                    <option value="1">
+                                                                        Period 1
+                                                                    </option>
+
+                                                                    <option value="2">
+                                                                        Period 2
+                                                                    </option>
+
+                                                                    <option value="3">
+                                                                        Period 3
+                                                                    </option>
+
+                                                                    <option value="4">
+                                                                        Period 4
+                                                                    </option>
+
+                                                                    <option value="5">
+                                                                        Period 5
+                                                                    </option>
+
+                                                                    <option value="6">
+                                                                        Period 6
+                                                                    </option>
+
+                                                                    <option value="7">
+                                                                        Period 7
+                                                                    </option>
+
+                                                                </select>
+
+                                                            </td>
+
+
+                                                            <td>
+
+                                                                <button
+                                                                    class="btn btn-success btn-sm timetable-assign"
+                                                                    data-class="${cls.id}"
+                                                                    data-slot="${slot}"
+                                                                    data-course="${escapeHtml(name)}">
+
+                                                                    Assign
+
+                                                                </button>
+
+                                                            </td>
+
+                                                        </tr>
+
+                                                    `;
+
+                                                }
+                                            ).join('')
+                                        }
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                });
+
+            } else {
+
+                timetableAssignHtml = `
+
+                    <div class="text-center text-muted py-3">
+
+                        No class is assigned to you yet.
+
+                    </div>
+
+                `;
+
+            }
+
+
+            document.getElementById(
+                'timetableAssignmentArea'
+            ).innerHTML = timetableAssignHtml;
+
+
+            /* =========================
+               TIMETABLE ASSIGN BUTTONS
+            ========================= */
+
+            document
+                .querySelectorAll('.timetable-assign')
+                .forEach(button => {
+
+                    button.addEventListener(
+                        'click',
+                        () => {
+
+                            assignTimetable(
+                                button.dataset.class,
+                                button.dataset.slot,
+                                button.dataset.course
+                            );
+
+                        }
+                    );
+
+                });
+
+
+            /* =========================
+               LEAVE ACTION BUTTONS
+            ========================= */
+
+            document
+                .querySelectorAll('.act')
+                .forEach(button => {
+
+                    button.addEventListener(
+                        'click',
+                        () =>
+                            act(
+                                button.dataset.id,
+                                button.dataset.action
+                            )
+                    );
+
+                });
+
+
+        } catch (e) {
+
+            Swal.fire(
+                'Error',
+                e.message,
+                'error'
+            );
+
+        }
+
+    }
+
+
+    /* =========================
+       LEAVE ACTION
+    ========================= */
+
+    async function act(id, action) {
+
+        const x = await Swal.fire({
+
+            title:
+                action === 'approve'
+                    ? 'Approve Leave?'
+                    : 'Reject Leave?',
+
+            icon:
+                action === 'approve'
+                    ? 'question'
+                    : 'warning',
+
+            showCancelButton: true,
+
+            confirmButtonText:
+                action === 'approve'
+                    ? 'Approve'
+                    : 'Reject'
+
+        });
+
+
+        if (!x.isConfirmed) return;
+
+
+        try {
+
+            const fd = new FormData();
+
+            fd.append('id', id);
+            fd.append('action', action);
+
+
+            const d = await apiJson(
+                API_BASE + '/advisor/action.php',
+                {
+                    method: 'POST',
+                    body: fd
+                }
+            );
+
+
+            await Swal.fire(
+                'Success',
+                d.message,
+                'success'
+            );
+
+
+            load();
+
+
+        } catch (e) {
+
+            Swal.fire(
+                'Error',
+                e.message,
+                'error'
+            );
+
+            load();
+
+        }
+
+    }
+
+
+    /* =========================
+       COURSE FACULTY ASSIGN
+    ========================= */
+
+    async function assignCourse(classId, slot) {
+
+        const sel =
+            document.querySelector(
+                `.faculty-select[data-class="${classId}"][data-slot="${slot}"]`
+            );
+
+
+        if (!sel || !sel.value) {
+
+            Swal.fire(
+                'Select Faculty',
+                'Please select a Course Faculty.',
+                'warning'
+            );
+
+            return;
+
+        }
+
+
+        try {
+
+            const fd = new FormData();
+
+            fd.append(
+                'class_assignment_id',
+                classId
+            );
+
+            fd.append(
+                'subject_slot',
+                slot
+            );
+
+            fd.append(
+                'faculty_id',
+                sel.value
+            );
+
+
+            const d = await apiJson(
+                API_BASE +
+                '/advisor/course_faculty_assignments.php',
+                {
+                    method: 'POST',
+                    body: fd
+                }
+            );
+
+
+            await Swal.fire(
+                'Success',
+                d.message,
+                'success'
+            );
+
+
+            load();
+
+
+        } catch (e) {
+
+            Swal.fire(
+                'Error',
+                e.message,
+                'error'
+            );
+
+        }
+
+    }
+
+
+    /* =========================
+       TIMETABLE ASSIGN
+    ========================= */
+
+    async function assignTimetable(
+        classId,
+        slot,
+        courseName
+    ) {
+
+        const daySelect =
+            document.querySelector(
+                `.timetable-day[data-class="${classId}"][data-slot="${slot}"]`
+            );
+
+
+        const periodSelect =
+            document.querySelector(
+                `.timetable-period[data-class="${classId}"][data-slot="${slot}"]`
+            );
+
+
+        if (!daySelect || !daySelect.value) {
+
+            Swal.fire(
+                'Select Day',
+                'Please select a day.',
+                'warning'
+            );
+
+            return;
+
+        }
+
+
+        if (!periodSelect || !periodSelect.value) {
+
+            Swal.fire(
+                'Select Period',
+                'Please select a period.',
+                'warning'
+            );
+
+            return;
+
+        }
+
+
+        const facultySelect =
+            document.querySelector(
+                `.faculty-select[data-class="${classId}"][data-slot="${slot}"]`
+            );
+
+
+        if (!facultySelect || !facultySelect.value) {
+
+            Swal.fire(
+                'Course Faculty Required',
+                'First assign a Course Faculty for this subject.',
+                'warning'
+            );
+
+            return;
+
+        }
+
+
+        try {
+
+            const fd = new FormData();
+
+
+            fd.append(
+                'class_assignment_id',
+                classId
+            );
+
+
+            fd.append(
+                'day',
+                daySelect.value
+            );
+
+
+            fd.append(
+                'period',
+                periodSelect.value
+            );
+
+
+            fd.append(
+                'subject_slot',
+                slot
+            );
+
+
+            fd.append(
+                'course_name',
+                courseName
+            );
+
+
+            fd.append(
+                'faculty_id',
+                facultySelect.value
+            );
+
+
+            const d = await apiJson(
+                API_BASE +
+                '/advisor/timetable.php',
+                {
+                    method: 'POST',
+                    body: fd
+                }
+            );
+
+
+            await Swal.fire(
+                'Success',
+                d.message,
+                'success'
+            );
+
+
+            load();
+
+
+        } catch (e) {
+
+            Swal.fire(
+                'Error',
+                e.message,
+                'error'
+            );
+
+        }
+
+    }
+
+
+    /* =========================
+       START
+    ========================= */
+
+    load();
+
+})();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+EMAIL SETUP
+===========
+
+Faculty 48-hour lock email is implemented.
+
+Before testing real Gmail delivery:
+1. Open backend/shared/email_config.php
+2. Set MAIL_USERNAME to the Gmail account you will use as sender.
+3. Set MAIL_APP_PASSWORD to that Gmail account's 16-character Google App Password.
+4. In users table, make sure the assigned advisor/faculty has a valid email in users.email.
+5. Save the file and test again.
+
+Do not use your normal Gmail password. Do not share the App Password or commit it to GitHub.
+
+The faculty lock flow:
+Student applies -> advisor_status=4 Pending -> after 48 hours -> advisor_status=2 Locked -> email to assigned faculty only.
+Locked requests are not forwarded to HOD.

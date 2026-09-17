@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Apply Leave / OD</title>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+
+<div id="chrome"></div>
+
+<script src="../assets/js/common.js"></script>
+
+<script>
+
+window.API_BASE = '../../backend';
+
+renderChrome('student');
+
+
+(async () => {
+
+    const me = await requirePageRole('student');
+
+    if (!me) return;
+
+
+    document.getElementById('page-content').innerHTML = `
+
+        <div class="page-head">
+
+            <h3>Apply Leave / OD</h3>
+
+            <p>
+                Select the type of application you want to submit.
+            </p>
+
+        </div>
+
+
+        <div class="container-fluid">
+
+
+            <!-- APPLICATION TYPE -->
+
+            <div class="card page-card mb-4">
+
+                <div class="card-header">
+                    <b>Choose Application Type</b>
+                </div>
+
+
+                <div class="card-body">
+
+                    <div class="row g-3">
+
+
+                        <div class="col-md-6">
+
+                            <button
+                                type="button"
+                                id="leaveBtn"
+                                class="btn btn-primary w-100 py-4"
+                                onclick="showApplicationForm('Leave')"
+                            >
+
+                                <i class="fa-solid fa-file-lines fa-2x mb-2"></i>
+
+                                <br>
+
+                                <strong>Apply Leave</strong>
+
+                                <br>
+
+                                <small>
+                                    Apply for regular leave
+                                </small>
+
+                            </button>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <button
+                                type="button"
+                                id="odBtn"
+                                class="btn btn-outline-primary w-100 py-4"
+                                onclick="showApplicationForm('OD')"
+                            >
+
+                                <i class="fa-solid fa-building-columns fa-2x mb-2"></i>
+
+                                <br>
+
+                                <strong>Apply OD</strong>
+
+                                <br>
+
+                                <small>
+                                    Apply for On-Duty permission
+                                </small>
+
+                            </button>
+
+                        </div>
+
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- APPLICATION FORM -->
+
+            <div
+                id="applicationFormContainer"
+                class="card page-card form-card"
+                style="display:none;"
+            >
+
+                <div class="card-header">
+
+                    <b id="formTitle">
+                        Leave Application
+                    </b>
+
+                </div>
+
+
+                <div class="card-body">
+
+
+                    <form
+                        id="applicationForm"
+                        enctype="multipart/form-data"
+                    >
+
+
+                        <input
+                            type="hidden"
+                            name="application_type"
+                            id="applicationType"
+                            value="Leave"
+                        >
+
+
+                        <div class="row g-3">
+
+
+                            <!-- FROM DATE -->
+
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+                                    From Date *
+                                </label>
+
+                                <input
+                                    type="date"
+                                    name="date_from"
+                                    class="form-control"
+                                    required
+                                >
+
+                            </div>
+
+
+                            <!-- TO DATE -->
+
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+                                    To Date *
+                                </label>
+
+                                <input
+                                    type="date"
+                                    name="date_to"
+                                    class="form-control"
+                                    required
+                                >
+
+                            </div>
+
+
+                            <!-- REASON -->
+
+                            <div class="col-12">
+
+                                <label class="form-label">
+                                    <span id="reasonLabel">
+                                        Leave Reason *
+                                    </span>
+                                </label>
+
+                                <textarea
+                                    name="reason"
+                                    class="form-control"
+                                    rows="4"
+                                    placeholder="Enter your reason"
+                                    required
+                                ></textarea>
+
+                            </div>
+
+
+                            <!-- PROOF -->
+
+                            <div class="col-12">
+
+                                <label class="form-label">
+                                    Proof (optional)
+                                </label>
+
+                                <input
+                                    type="file"
+                                    name="proof"
+                                    class="form-control"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                >
+
+                                <div class="field-help mt-1">
+
+                                    PDF/JPG/JPEG/PNG,
+                                    maximum 5 MB.
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- BUTTONS -->
+
+                            <div class="col-12">
+
+                                <button
+                                    class="btn btn-primary"
+                                    type="submit"
+                                    id="submitBtn"
+                                >
+
+                                    <i class="fa-solid fa-paper-plane me-2"></i>
+
+                                    Submit Leave
+
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    class="btn btn-light ms-2"
+                                    onclick="resetApplication()"
+                                >
+
+                                    Cancel
+
+                                </button>
+
+                            </div>
+
+
+                        </div>
+
+                    </form>
+
+
+                </div>
+
+            </div>
+
+
+        </div>
+    `;
+
+
+    /* ---------------------------------------------------------
+       SHOW LEAVE / OD FORM
+    --------------------------------------------------------- */
+
+    window.showApplicationForm = function(type) {
+
+        const container =
+            document.getElementById('applicationFormContainer');
+
+        const formTitle =
+            document.getElementById('formTitle');
+
+        const applicationType =
+            document.getElementById('applicationType');
+
+        const reasonLabel =
+            document.getElementById('reasonLabel');
+
+        const submitBtn =
+            document.getElementById('submitBtn');
+
+        const leaveBtn =
+            document.getElementById('leaveBtn');
+
+        const odBtn =
+            document.getElementById('odBtn');
+
+
+        applicationType.value = type;
+
+
+        if (type === 'OD') {
+
+            formTitle.textContent = 'OD Application';
+
+            reasonLabel.textContent = 'OD Reason *';
+
+            submitBtn.innerHTML =
+                '<i class="fa-solid fa-paper-plane me-2"></i>Submit OD';
+
+            odBtn.className =
+                'btn btn-primary w-100 py-4';
+
+            leaveBtn.className =
+                'btn btn-outline-primary w-100 py-4';
+
+        } else {
+
+            formTitle.textContent = 'Leave Application';
+
+            reasonLabel.textContent = 'Leave Reason *';
+
+            submitBtn.innerHTML =
+                '<i class="fa-solid fa-paper-plane me-2"></i>Submit Leave';
+
+            leaveBtn.className =
+                'btn btn-primary w-100 py-4';
+
+            odBtn.className =
+                'btn btn-outline-primary w-100 py-4';
+
+        }
+
+
+        container.style.display = 'block';
+
+        container.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+
+    };
+
+
+    /* ---------------------------------------------------------
+       RESET
+    --------------------------------------------------------- */
+
+    window.resetApplication = function() {
+
+        document.getElementById('applicationForm').reset();
+
+        document.getElementById('applicationType').value =
+            'Leave';
+
+        document.getElementById('applicationFormContainer')
+            .style.display = 'none';
+
+        document.getElementById('leaveBtn').className =
+            'btn btn-primary w-100 py-4';
+
+        document.getElementById('odBtn').className =
+            'btn btn-outline-primary w-100 py-4';
+
+    };
+
+
+    /* ---------------------------------------------------------
+       SUBMIT
+    --------------------------------------------------------- */
+
+    document
+        .getElementById('applicationForm')
+        .addEventListener('submit', async e => {
+
+            e.preventDefault();
+
+
+            const form = e.target;
+
+            const type =
+                document.getElementById('applicationType').value;
+
+
+            try {
+
+                const d = await apiJson(
+                    API_BASE + '/student/apply_leave.php',
+                    {
+                        method: 'POST',
+                        body: new FormData(form)
+                    }
+                );
+
+
+                await Swal.fire(
+                    'Success',
+                    d.message,
+                    'success'
+                );
+
+
+                location.href = 'my_leaves.html';
+
+
+            } catch (err) {
+
+                Swal.fire(
+                    'Error',
+                    err.message,
+                    'error'
+                );
+
+            }
+
+        });
+
+})();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    <title>My Leave Requests</title>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+
+    <div id="chrome"></div>
+
+    <script src="../assets/js/common.js"></script>
+
+    <script>
+        window.API_BASE='../../backend';
+
+        renderChrome('student');
+
+        (async()=>{
+            const me=await requirePageRole('student');
+
+            if(!me)return;
+
+            try
+            {
+                const d=await apiJson(API_BASE+'/student/my_leaves.php');
+
+                document.getElementById('page-content').innerHTML=`
+
+                    <div class="page-head">
+                        <h3>My Leave Requests</h3>
+                        <p>Track every leave application and approval stage.</p>
+                    </div>
+
+                    <div class="container-fluid">
+
+                        <div class="card page-card">
+
+                            <div class="card-header">
+                                <b>Leave History</b>
+
+                                <div>
+                                    <a class="btn btn-success btn-sm me-2" href="../../backend/student/download_leaves.php">
+                                        <i class="fa-solid fa-file-excel me-1"></i>
+                                        Download Excel
+                                    </a>
+
+                                    <a class="btn btn-primary btn-sm" href="apply_leave.html">
+                                        + Apply Leave
+                                    </a>
+                                </div>
+
+                            </div>
+
+                            <div class="table-responsive">
+
+                                <table class="table table-hover mb-0">
+
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Date</th>
+                                            <th>Reason</th>
+                                            <th>Proof</th>
+                                            <th>Advisor</th>
+                                            <th>HOD</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+
+                                        ${d.leaves.length?
+
+                                            d.leaves.map((r,i)=>`
+
+                                                <tr>
+
+                                                    <td>${i+1}</td>
+
+                                                    <td>
+                                                        ${escapeHtml(r.date_from)} → ${escapeHtml(r.date_to)}
+                                                    </td>
+
+                                                    <td>
+                                                        ${escapeHtml(r.reason)}
+                                                    </td>
+
+                                                    <td>
+                                                        ${r.proof?
+                                                            `<a target="_blank" class="btn btn-sm btn-outline-info proof-link" href="../../uploads/student/proofs/${encodeURIComponent(r.proof)}">
+                                                                View
+                                                            </a>`
+                                                            :
+                                                            '-'
+                                                        }
+                                                    </td>
+
+                                                    <td>
+                                                        ${statusBadge(advisorStatus(r))}
+                                                    </td>
+
+                                                    <td>
+                                                        ${statusBadge(hodStatus(r))}
+                                                    </td>
+
+                                                    <td>
+                                                        ${statusBadge(finalStatus(r))}
+                                                    </td>
+
+                                                </tr>
+
+                                            `).join('')
+
+                                            :
+
+                                            '<tr><td colspan="7" class="text-center text-muted">No leave requests found.</td></tr>'
+
+                                        }
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                `;
+
+            }
+            catch(e)
+            {
+                Swal.fire('Error',e.message,'error');
+            }
+
+        })();
+    </script>
+
+</body>
+</html>

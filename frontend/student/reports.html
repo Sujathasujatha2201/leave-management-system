@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Student Reports</title>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+
+<div id="chrome"></div>
+
+<script src="../assets/js/common.js"></script>
+
+<script>
+window.API_BASE='../../backend';
+
+renderChrome('student');
+
+(async()=>{
+
+    const me=await requirePageRole('student');
+    if(!me) return;
+
+    document.getElementById('page-content').innerHTML=`
+
+    <div class="page-head">
+        <h3>Leave Reports</h3>
+        <p>View and download your leave report.</p>
+    </div>
+
+    <div class="container-fluid">
+
+        <!-- FILTERS -->
+        <div class="card page-card mb-4">
+            <div class="card-header">
+                <b><i class="fa-solid fa-filter me-2"></i>Report Filters</b>
+            </div>
+
+            <div class="card-body">
+
+                <div class="row g-3 align-items-end">
+
+                    <div class="col-md-3">
+                        <label class="form-label">From Date</label>
+                        <input type="date" id="fromDate" class="form-control">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">To Date</label>
+                        <input type="date" id="toDate" class="form-control">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Leave Status</label>
+                        <select id="status" class="form-select">
+                            <option value="all">All</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="locked">Locked</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 d-flex gap-2">
+                        <button class="btn btn-primary" id="applyFilter">
+                            <i class="fa-solid fa-filter me-1"></i>
+                            Apply Filter
+                        </button>
+
+                        <button class="btn btn-outline-secondary" id="resetFilter">
+                            <i class="fa-solid fa-rotate-left me-1"></i>
+                            Reset
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- SUMMARY CARDS -->
+
+        <div class="row g-3 mb-4">
+
+            <div class="col-md">
+                <div class="stat-card">
+                    <span>Total Leaves</span>
+                    <strong id="totalLeaves">0</strong>
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+            </div>
+
+            <div class="col-md">
+                <div class="stat-card">
+                    <span>Approved</span>
+                    <strong id="approvedLeaves">0</strong>
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+            </div>
+
+            <div class="col-md">
+                <div class="stat-card">
+                    <span>Rejected</span>
+                    <strong id="rejectedLeaves">0</strong>
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </div>
+            </div>
+
+            <div class="col-md">
+                <div class="stat-card">
+                    <span>Pending</span>
+                    <strong id="pendingLeaves">0</strong>
+                    <i class="fa-solid fa-hourglass-half"></i>
+                </div>
+            </div>
+
+            <div class="col-md">
+                <div class="stat-card">
+                    <span>Locked</span>
+                    <strong id="lockedLeaves">0</strong>
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- DOWNLOAD BUTTONS -->
+
+        <div class="card page-card">
+
+            <div class="card-header d-flex justify-content-between align-items-center">
+
+                <b>
+                    <i class="fa-solid fa-file-lines me-2"></i>
+                    Leave Report
+                </b>
+
+                <div class="d-flex gap-2">
+
+                    <button class="btn btn-danger btn-sm" id="downloadPdf">
+                        <i class="fa-solid fa-file-pdf me-1"></i>
+                        Download PDF
+                    </button>
+
+                    <button class="btn btn-success btn-sm" id="downloadExcel">
+                        <i class="fa-solid fa-file-excel me-1"></i>
+                        Download Excel
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- TABLE -->
+
+            <div class="table-responsive">
+
+                <table class="table table-hover mb-0">
+
+                    <thead>
+
+                        <tr>
+                            <th>#</th>
+                            <th>Leave From</th>
+                            <th>Leave To</th>
+                            <th>Reason</th>
+                            <th>Advisor Status</th>
+                            <th>HOD Status</th>
+                            <th>Final Status</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="reportTable">
+
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">
+                                Loading...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+    `;
+
+
+    async function loadReport(){
+
+        const params=new URLSearchParams();
+
+        const from=document.getElementById('fromDate').value;
+        const to=document.getElementById('toDate').value;
+        const status=document.getElementById('status').value;
+
+        if(from) params.append('from_date',from);
+        if(to) params.append('to_date',to);
+        if(status && status!=='all') params.append('status',status);
+
+        try{
+
+            const d=await apiJson(
+                API_BASE+'/student/reports.php?'+params.toString()
+            );
+
+            const leaves=d.leaves || [];
+
+            document.getElementById('totalLeaves').textContent=
+                leaves.length;
+
+            document.getElementById('approvedLeaves').textContent=
+                leaves.filter(r=>finalStatus(r)==='Approved').length;
+
+            document.getElementById('rejectedLeaves').textContent=
+                leaves.filter(r=>finalStatus(r)==='Rejected').length;
+
+            document.getElementById('pendingLeaves').textContent=
+                leaves.filter(r=>finalStatus(r)==='Pending').length;
+
+            document.getElementById('lockedLeaves').textContent=
+                leaves.filter(r=>finalStatus(r)==='Locked').length;
+
+
+            const tbody=document.getElementById('reportTable');
+
+            if(!leaves.length){
+
+                tbody.innerHTML=`
+                    <tr>
+                        <td colspan="7"
+                            class="text-center text-muted py-4">
+                            No leave records found.
+                        </td>
+                    </tr>
+                `;
+
+                return;
+            }
+
+
+            tbody.innerHTML=leaves.map((r,i)=>`
+
+                <tr>
+
+                    <td>${i+1}</td>
+
+                    <td>
+                        ${escapeHtml(r.date_from)}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(r.date_to)}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(r.reason)}
+                    </td>
+
+                    <td>
+                        ${statusBadge(advisorStatus(r))}
+                    </td>
+
+                    <td>
+                        ${statusBadge(hodStatus(r))}
+                    </td>
+
+                    <td>
+                        ${statusBadge(finalStatus(r))}
+                    </td>
+
+                </tr>
+
+            `).join('');
+
+        }
+        catch(e){
+
+            document.getElementById('reportTable').innerHTML=`
+                <tr>
+                    <td colspan="7"
+                        class="text-center text-danger py-4">
+                        ${escapeHtml(e.message)}
+                    </td>
+                </tr>
+            `;
+
+        }
+
+    }
+
+
+    document.getElementById('applyFilter')
+        .addEventListener('click',loadReport);
+
+
+    document.getElementById('resetFilter')
+        .addEventListener('click',()=>{
+
+            document.getElementById('fromDate').value='';
+            document.getElementById('toDate').value='';
+            document.getElementById('status').value='all';
+
+            loadReport();
+
+        });
+
+
+    function downloadFile(type){
+
+        const from=document.getElementById('fromDate').value;
+        const to=document.getElementById('toDate').value;
+        const status=document.getElementById('status').value;
+
+        const params=new URLSearchParams();
+
+        if(from) params.append('from_date',from);
+        if(to) params.append('to_date',to);
+        if(status && status!=='all')
+            params.append('status',status);
+
+        window.location.href=
+            API_BASE+'/student/export_'+type+'.php?'+
+            params.toString();
+
+    }
+
+
+    document.getElementById('downloadPdf')
+        .addEventListener('click',()=>{
+            downloadFile('pdf');
+        });
+
+
+    document.getElementById('downloadExcel')
+        .addEventListener('click',()=>{
+            downloadFile('excel');
+        });
+
+
+    loadReport();
+
+})();
+</script>
+
+</body>
+</html>
